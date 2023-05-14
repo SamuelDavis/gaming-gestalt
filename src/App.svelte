@@ -1,74 +1,65 @@
 <script lang="ts">
-  import { derived, readable, writable } from "svelte/store";
-  import { persistent } from "./util";
+  import Map from "./Map.svelte";
+  import Turn from "./Turn.svelte";
+  import { derived, writable } from "svelte/store";
+  import type Component from "svelte/types/compiler/compile/Component";
 
-  type Entity = {
-    name: string;
-    speed: number;
+  const routes = {
+    turn: Turn,
+    map: Map,
   };
+  const path = writable(window.location.hash.slice(1));
+  const component = derived([path], ([path]) => routes[path] ?? null);
+  $: Component = routes[path];
 
-  const turn = persistent("turn-number", writable(1));
-  const projection = persistent("turn-projection", writable(10));
-  const entities = readable<Entity[]>([
-    { name: "Foo", speed: 0.3 },
-    { name: "Bar", speed: 0.2 },
-    { name: "Qux", speed: 0.1 },
-  ]);
-  const turns = derived(
-    [turn, projection, entities],
-    ([turn, projection, entities]) => {
-      const turns: Entity[] = [];
-      const speed = new Float32Array(entities.length);
-      for (let tid = 0; tid < turn + projection; tid++) {
-        for (let eid = 0; eid < entities.length; eid++) {
-          speed[eid] += entities[eid].speed;
-          if (speed[eid] < 1) continue;
-          speed[eid] -= 1;
-          if (tid >= turn) turns.push(entities[eid]);
-        }
-      }
-      return turns;
-    }
-  );
+  window.addEventListener("hashchange", () => {
+    $path = window.location.hash.slice(1);
+  });
 </script>
 
-<main>
-  <aside>
-    <form on:submit|preventDefault>
-      <label>
-        turn <input bind:value={$turn} min="1" type="number" />
-      </label>
-      <label>
-        projection <input bind:value={$projection} min="1" type="number" />
-      </label>
-    </form>
-  </aside>
-  <hr />
-  <article>
-    <ol>
-      {#each $turns as entity}
+<header>
+  <nav>
+    <ul>
+      {#each Object.keys(routes) as name}
         <li>
-          ({entity.speed}) {entity.name}
+          <a class:active={$path === name} href={`#${name}`}>{name}</a>
         </li>
       {/each}
-    </ol>
-  </article>
-</main>
+    </ul>
+  </nav>
+</header>
+<hr />
+
+{#if $component}
+  <svelte:component this={$component} />
+{/if}
 
 <style lang="css">
-  form {
-    width: fit-content;
+  :global(main) {
+    margin: 1em;
   }
 
-  label {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1em;
+  nav {
+    margin: 1em;
   }
 
-  ol {
+  nav ul {
     display: flex;
-    gap: 2em;
-    flex-wrap: wrap;
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  nav a.active {
+    font-weight: bold;
+  }
+
+  nav li {
+    padding: 0;
+  }
+
+  nav li:not(:last-child):after {
+    content: "|";
+    margin: 0.5em;
   }
 </style>
